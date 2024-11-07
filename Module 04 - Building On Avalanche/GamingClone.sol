@@ -1,112 +1,80 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
+// Import OpenZeppelin Libraries
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Roles.sol";
 
-contract AvalancheGame is ERC20 {
-
+contract DegenGaming is ERC20 {
     using Roles for Roles.Role;
 
-    ///////////////////////// STATE VARIABLES ///////////////////////////
-
+    // State Variables
+    string private _name = "Wrapped USDC";
+    string private _symbol = "BUSDC";
+    uint8 private _decimals = 10;
     address public owner;
-    string public description;
-    string private constant TOKEN_NAME = "Degen";
-    string private constant TOKEN_SYMBOL = "DGN";
-
-    mapping(uint256 => string) public itemNames;
-    mapping(uint256 => uint256) public itemPrices;
-    mapping(address => mapping(uint256 => bool)) public redeemedItems;
-    mapping(address => uint256) public redeemedItemCount;
 
     Roles.Role private _ownerRole;
 
-    ///////////////////////////// EVENTS ///////////////////////////////
+    // Mapping for Store Items
+    mapping(uint256 => string) public ItemName;
+    mapping(uint256 => uint256) public Itemprice;
+    mapping(address => mapping(uint256 => bool)) public redeemedItems;
+    mapping(address => uint256) public redeemedItemCount;
 
-    event ItemRedeemed(address indexed user, string itemName);
+    // Events for Redeeming Items
+    event Redeem(address indexed user, string itemName);
 
-    //////////////////////////// CONSTRUCTOR ////////////////////////////
-
-    constructor(string memory _description) ERC20(TOKEN_NAME, TOKEN_SYMBOL) {
+    // Constructor to Initialize ERC20 and Sample Items in Store
+    constructor() ERC20(_name, _symbol) {
         owner = msg.sender;
-        description = _description;
+        _ownerRole.add(owner);
+        // Initialize some sample items in the store
+        addItemToStore(0, "Avalanche VIP", 1000);
+        addItemToStore(1, "Avalanche Boss Card", 10000);
     }
 
-    //////////////////////////// FUNCTIONS /////////////////////////////
-
-    /**
-     * @dev Sets the description for the contract.
-     * @param _description The new description for the contract.
-     */
-    function setDescription(string memory _description) public  {
-        require(_ownerRole.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
-        description = _description;
-    }
-
-    /**
-     * @dev Retrieves the contract description.
-     * @return The current description of the contract.
-     */
-    function getDescription() public view returns (string memory) {
-        return description;
-    }
-
-    /**
-     * @dev Adds a new item to the game store.
-     * @param itemId The ID of the item.
-     * @param itemName The name of the item.
-     * @param itemPrice The price of the item in tokens.
-     */
-    function addItemToStore(uint256 itemId, string memory itemName, uint256 itemPrice) public {
-         require(_ownerRole.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
-        itemNames[itemId] = itemName;
-        itemPrices[itemId] = itemPrice;
-    }
-
-    /**
-     * @dev Mints new tokens to a specified address.
-     * @param to The address to receive the minted tokens.
-     * @param amount The amount of tokens to mint.
-     */
-    function mintTokens(address to, uint256 amount) public  {
+    // Mint Tokens (Only Owner)
+    function mint(address to, uint256 amount) public {
         require(_ownerRole.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
         _mint(to, amount);
     }
 
-    /**
-     * @dev Burns a specified amount of tokens from the caller's balance.
-     * @param amount The amount of tokens to burn.
-     */
-    function burnTokens(uint256 amount) public {
+    // Burn Tokens (Anyone Can Burn Their Own Tokens)
+    function burn(uint256 amount) public {
         _burn(msg.sender, amount);
     }
 
-    /**
-     * @dev Redeems an item from the store using tokens.
-     * @param itemId The ID of the item to redeem.
-     * @return The name of the redeemed item.
-     */
-    function redeemItem(uint256 itemId) public returns (string memory) {
-        require(itemPrices[itemId] > 0, "Invalid item ID.");
-        uint256 redemptionAmount = itemPrices[itemId];
-        require(balanceOf(msg.sender) >= redemptionAmount, "Insufficient balance.");
+    // Custom Transfer Function
+    function transferTokens(address to, uint256 amount) external {
+
+        require(_ownerRole.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
+        _transfer(msg.sender, to, amount);
+    }
+
+    // Store Function to Set Item Name and Price
+    function addItemToStore(uint256 itemId, string memory _itemName, uint256 _itemPrice) public {
+        require(_ownerRole.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
+        ItemName[itemId] = _itemName;
+        Itemprice[itemId] = _itemPrice;
+    }
+
+    // Redeem Item from Store
+    function Itemredeem(uint256 accId) external returns (string memory) {
+        require(Itemprice[accId] > 0, "Invalid item ID.");
+        uint256 redemptionAmount = Itemprice[accId];
+        require(balanceOf(msg.sender) >= redemptionAmount, "Insufficient balance to redeem the item.");
 
         _burn(msg.sender, redemptionAmount);
-        redeemedItems[msg.sender][itemId] = true;
+        redeemedItems[msg.sender][accId] = true;
         redeemedItemCount[msg.sender]++;
-        emit ItemRedeemed(msg.sender, itemNames[itemId]);
+        emit Redeem(msg.sender, ItemName[accId]);
 
-        return itemNames[itemId];
+        return ItemName[accId];
     }
 
-    /**
-     * @dev Gets the total count of items redeemed by a specific user.
-     * @param user The address of the user.
-     * @return The total redeemed item count.
-     */
-    function getRedeemedItemCount(address user) public view returns (uint256) {
+    // Get Redeemed Item Count
+    function getRedeemedItemCount(address user) external view returns (uint256) {
         return redeemedItemCount[user];
     }
-
 }
